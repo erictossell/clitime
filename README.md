@@ -1,0 +1,1 @@
+Project ideas: https://app.excalidraw.com/l/3KdES2ZvSQP/9Nen4eu2eta
