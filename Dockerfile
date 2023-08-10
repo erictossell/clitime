@@ -8,6 +8,6 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o go-time ./cmd/go_time/ 
+RUN go build -o go-time ./ 
 
 CMD ["./go-time"]
