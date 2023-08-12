@@ -5,6 +5,8 @@ import (
 	"os"
 	"time"
 
+  "time_cli/db"
+
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/stopwatch"
@@ -71,6 +73,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func main() {
+  db.InitDB()
+
+
 	m := model{
 		stopwatch: stopwatch.NewWithInterval(time.Second),
 		keymap: keymap{
