@@ -20,6 +20,7 @@ type model struct {
 	quitting  bool
   capturingName bool
   capturingDescription bool
+  task *db.Task
   taskName string
   taskDescription string
 }
@@ -46,8 +47,8 @@ func (m model) View() string {
   if m.capturingDescription {
     return "Enter a description: " + m.taskDescription
   }
-
-  s := m.stopwatch.View() + "\n"
+  
+  s :="Working on: " + m.task.Name + "\n" + m.stopwatch.View() + "\n"
 	if !m.quitting {
 		s = "Elapsed: " + s
 		s += m.helpView()
@@ -88,7 +89,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
       switch msg.String() {
       case "enter" :
         m.capturingDescription = false
-        db.CreateTask(m.taskName, m.taskDescription, time.Now())
+        m.task = db.CreateTask(m.taskName, m.taskDescription)
         return m, m.stopwatch.Reset()
       case "backspace":
         if len(m.taskDescription) > 0 {
@@ -101,8 +102,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
       }
     }
 
-
-
 		switch {
 		case key.Matches(msg, m.keymap.quit):
 			m.quitting = true
@@ -110,7 +109,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keymap.reset):
       m.capturingName = true
       m.taskName = ""
-			return m, m.stopwatch.Reset()
+      elapsedTime := m.stopwatch.Elapsed()
+      if m.task != nil {
+        db.UpdateTaskElapsedTime(m.task.ID, elapsedTime)  
+      }     
+      return m, m.stopwatch.Reset()
 		case key.Matches(msg, m.keymap.start, m.keymap.stop):
 
       m.keymap.stop.SetEnabled(!m.stopwatch.Running())
@@ -125,33 +128,69 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func main() {
   db.InitDB()
-	m := model{
-		stopwatch: stopwatch.NewWithInterval(time.Second),
-		keymap: keymap{
-			start: key.NewBinding(
-				key.WithKeys("s"),
-				key.WithHelp("s", "start"),
-			),
-			stop: key.NewBinding(
-				key.WithKeys("s"),
-				key.WithHelp("s", "stop"),
-			),
-			reset: key.NewBinding(
-				key.WithKeys("r"),
-				key.WithHelp("r", "reset"),
-			),
-			quit: key.NewBinding(
-				key.WithKeys("ctrl+c", "q"),
-				key.WithHelp("q", "quit"),
-			),
-		},
+  latestTask := db.GetLatestTask()
+  
+  if latestTask != nil {
+    m := model{
+      task: latestTask,
+      stopwatch: stopwatch.NewWithInterval(time.Second),
+		  keymap: keymap{
+			  start: key.NewBinding(
+				  key.WithKeys("s"),
+				  key.WithHelp("s", "start"),
+			  ),
+			  stop: key.NewBinding(
+			  	key.WithKeys("s"),
+				  key.WithHelp("s", "stop"),
+			  ),
+			  reset: key.NewBinding(
+			  	key.WithKeys("r"),
+			  	key.WithHelp("r", "reset"),
+			  ),
+			  quit: key.NewBinding(
+			  	key.WithKeys("ctrl+c", "q"),
+			  	key.WithHelp("q", "quit"),
+        ),
+  		 },
+		  help: help.New(),
+      }
+	    m.keymap.start.SetEnabled(false)
+
+	    if _, err := tea.NewProgram(m).Run(); err != nil {
+		    fmt.Println("Oh no, it didn't work:", err)
+		    os.Exit(1)
+	    }
+  } else {
+	  m := model{
+      capturingName : true,
+		  stopwatch: stopwatch.NewWithInterval(time.Second),
+		  keymap: keymap{
+			  start: key.NewBinding(
+				  key.WithKeys("s"),
+				  key.WithHelp("s", "start"),
+			  ),
+			  stop: key.NewBinding(
+				  key.WithKeys("s"),
+				  key.WithHelp("s", "stop"),
+			  ),
+			  reset: key.NewBinding(
+				  key.WithKeys("r"),
+				  key.WithHelp("r", "reset"),
+			  ),
+			  quit: key.NewBinding(
+				  key.WithKeys("ctrl+c", "q"),
+				  key.WithHelp("q", "quit"),
+			  ),
+		  },
 		help: help.New(),
-	}
+    }
 
-	m.keymap.start.SetEnabled(false)
+	  m.keymap.start.SetEnabled(false)
 
-	if _, err := tea.NewProgram(m).Run(); err != nil {
-		fmt.Println("Oh no, it didn't work:", err)
-		os.Exit(1)
-	}
+	  if _, err := tea.NewProgram(m).Run(); err != nil {
+		  fmt.Println("Oh no, it didn't work:", err)
+		  os.Exit(1)
+	  }
+	
+  }
 }

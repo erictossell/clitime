@@ -13,6 +13,7 @@ type Task struct {
 	Description string
   EndTime time.Time
   ResetTime time.Time
+  ElapsedTime time.Duration
 }
 
 var db *gorm.DB
@@ -27,8 +28,8 @@ func InitDB() {
 	db.AutoMigrate(&Task{})
 }
 
-func CreateTask(name, description string, resetTime time.Time) *Task {
-  task := &Task{Name: name, Description: description, ResetTime: resetTime}
+func CreateTask(name, description string) *Task {
+  task := &Task{Name: name, Description: description}
 	db.Create(task)
 	return task
 }
@@ -45,9 +46,24 @@ func GetTaskByID(id uint) *Task {
 	return &task
 }
 
-func UpdateTaskName(id uint, newName string) {
+func UpdateTask(id uint, newName string, newDescription string, elapsedTime time.Duration) {
 	var task Task
 	db.First(&task, id)
-	db.Model(&task).Update("Name", newName)
+  task.Name = newName
+  task.Description = newDescription
+  task.ElapsedTime = elapsedTime
+  db.Save(&task)
 }
 
+func UpdateTaskElapsedTime(id uint, elapsedTime time.Duration) {
+  var task Task
+  db.First(&task, id)
+  task.ElapsedTime = elapsedTime
+  db.Save(&task)
+}
+
+func GetLatestTask() *Task {
+  var task Task
+  db.Order("created_at desc").First(&task)
+  return &task
+}
