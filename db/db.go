@@ -4,12 +4,15 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"log"
+  "time"
 )
 
 type Task struct {
 	gorm.Model
 	Name        string
 	Description string
+  EndTime time.Time
+  ResetTime time.Time
 }
 
 var db *gorm.DB
@@ -24,8 +27,8 @@ func InitDB() {
 	db.AutoMigrate(&Task{})
 }
 
-func CreateTask(name, description string) *Task {
-	task := &Task{Name: name, Description: description}
+func CreateTask(name, description string, resetTime time.Time) *Task {
+  task := &Task{Name: name, Description: description, ResetTime: resetTime}
 	db.Create(task)
 	return task
 }

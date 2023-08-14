@@ -18,6 +18,10 @@ type model struct {
 	keymap    keymap
 	help      help.Model
 	quitting  bool
+  capturingName bool
+  capturingDescription bool
+  taskName string
+  taskDescription string
 }
 
 type keymap struct {
@@ -35,7 +39,15 @@ func (m model) View() string {
 	// Note: you could further customize the time output by getting the
 	// duration from m.stopwatch.Elapsed(), which returns a time.Duration, and
 	// skip m.stopwatch.View() altogether.
-	s := m.stopwatch.View() + "\n"
+	if m.capturingName {
+    return "Enter task name: " + m.taskName
+  }
+
+  if m.capturingDescription {
+    return "Enter a description: " + m.taskDescription
+  }
+
+  s := m.stopwatch.View() + "\n"
 	if !m.quitting {
 		s = "Elapsed: " + s
 		s += m.helpView()
@@ -55,14 +67,53 @@ func (m model) helpView() string {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+    if m.capturingName {
+      switch msg.String() {
+      case "enter" :
+        m.capturingName = false
+        m.capturingDescription = true
+        return m, nil
+      case "backspace":
+        if len(m.taskName) > 0 {
+          m.taskName = m.taskName[:len(m.taskName)-1]
+        }
+        return m, nil
+      default:
+        m.taskName += msg.String()
+        return m, nil
+      }
+    }
+    
+     if m.capturingDescription {
+      switch msg.String() {
+      case "enter" :
+        m.capturingDescription = false
+        db.CreateTask(m.taskName, m.taskDescription, time.Now())
+        return m, m.stopwatch.Reset()
+      case "backspace":
+        if len(m.taskDescription) > 0 {
+          m.taskDescription = m.taskDescription[:len(m.taskDescription)-1]
+        }
+        return m, nil
+      default:
+        m.taskDescription += msg.String()
+        return m, nil
+      }
+    }
+
+
+
 		switch {
 		case key.Matches(msg, m.keymap.quit):
 			m.quitting = true
 			return m, tea.Quit
 		case key.Matches(msg, m.keymap.reset):
+      m.capturingName = true
+      m.taskName = ""
 			return m, m.stopwatch.Reset()
 		case key.Matches(msg, m.keymap.start, m.keymap.stop):
-			m.keymap.stop.SetEnabled(!m.stopwatch.Running())
+
+      m.keymap.stop.SetEnabled(!m.stopwatch.Running())
 			m.keymap.start.SetEnabled(m.stopwatch.Running())
 			return m, m.stopwatch.Toggle()
 		}
@@ -74,8 +125,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func main() {
   db.InitDB()
-
-
 	m := model{
 		stopwatch: stopwatch.NewWithInterval(time.Second),
 		keymap: keymap{
