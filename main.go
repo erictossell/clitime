@@ -6,10 +6,10 @@ import (
 	"time"
 
   "time_cli/db"
-
+  "time_cli/stopwatch"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/stopwatch"
+
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -48,9 +48,8 @@ func (m model) View() string {
     return "Enter a description: " + m.taskDescription
   }
   
-  s :="Working on: " + m.task.Name + "\n" + m.stopwatch.View() + "\n"
+  s :="Working on: " + m.task.Name + "\nElapsed: "+ m.stopwatch.View() + "\n"
 	if !m.quitting {
-		s = "Elapsed: " + s
 		s += m.helpView()
 	}
 	return s
@@ -104,6 +103,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch {
 		case key.Matches(msg, m.keymap.quit):
+      elapsedTime := m.stopwatch.Elapsed()
+      if m.task != nil {
+        db.UpdateTaskElapsedTime(m.task.ID, elapsedTime)
+      }
 			m.quitting = true
 			return m, tea.Quit
 		case key.Matches(msg, m.keymap.reset):
@@ -115,7 +118,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
       }     
       return m, m.stopwatch.Reset()
 		case key.Matches(msg, m.keymap.start, m.keymap.stop):
-
+      elapsedTime := m.stopwatch.Elapsed()
+      if m.task != nil {
+        db.UpdateTaskElapsedTime(m.task.ID, elapsedTime)
+      }
       m.keymap.stop.SetEnabled(!m.stopwatch.Running())
 			m.keymap.start.SetEnabled(m.stopwatch.Running())
 			return m, m.stopwatch.Toggle()
@@ -131,9 +137,10 @@ func main() {
   latestTask := db.GetLatestTask()
   
   if latestTask != nil {
+    stopwatch := stopwatch.NewWithInterval(latestTask.ElapsedTime, time.Second)
     m := model{
       task: latestTask,
-      stopwatch: stopwatch.NewWithInterval(time.Second),
+      stopwatch : stopwatch, 
 		  keymap: keymap{
 			  start: key.NewBinding(
 				  key.WithKeys("s"),
@@ -163,7 +170,7 @@ func main() {
   } else {
 	  m := model{
       capturingName : true,
-		  stopwatch: stopwatch.NewWithInterval(time.Second),
+		  stopwatch: stopwatch.NewWithInterval(0, time.Second),
 		  keymap: keymap{
 			  start: key.NewBinding(
 				  key.WithKeys("s"),
