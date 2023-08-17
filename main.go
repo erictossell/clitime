@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
-  "time_cli/db"
-  "time_cli/stopwatch"
+  "clitime/db"
+  "clitime/stopwatch"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 
